@@ -22,14 +22,47 @@ public class AssetDbContext : DbContext
     {
         return await Assets.ToListAsync();
     }
-
+    
+    // C
     public async Task CreateAsset(Asset newAsset)
     {
         Assets.Add(newAsset);
         await SaveChangesAsync();
     }
+
+    // R
+    public async Task<Asset> GetAssetByID(int assetId)
+    {
+        return await Assets.FindAsync(assetId);
+    }
     
+    // U
+    public async Task UpdateAsset(Asset updatedAsset)
+    {
+        var currentAsset = await GetAssetByID(updatedAsset.Id);
+        
+        if(currentAsset is null) 
+            return;
+
+        currentAsset.Name = updatedAsset.Name;
+        currentAsset.Office = updatedAsset.Office;
+        currentAsset.Price = updatedAsset.Price;
+        currentAsset.PurchaseDate = updatedAsset.PurchaseDate;
+
+        await SaveChangesAsync();
+    }
     
+    // D
+    public async Task DeleteAsset(int assetId)
+    {
+        var assetToDelete = await GetAssetByID(assetId);
+        
+        if(assetToDelete is null)
+            return;
+
+        Assets.Remove(assetToDelete);
+        await SaveChangesAsync();
+    }
 }
 
 class Program
@@ -50,5 +83,7 @@ class Program
 
             // Continue with your application logic here
         }
+        
+        
     }
 }
