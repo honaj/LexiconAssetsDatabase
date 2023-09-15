@@ -39,15 +39,10 @@ public class AssetDbContext : DbContext
     // U
     public async Task UpdateAsset(Asset updatedAsset)
     {
-        var currentAsset = await GetAssetByID(updatedAsset.Id);
-        
-        if(currentAsset is null) 
+        if(updatedAsset is null) 
             return;
 
-        currentAsset.Name = updatedAsset.Name;
-        currentAsset.Office = updatedAsset.Office;
-        currentAsset.Price = updatedAsset.Price;
-        currentAsset.PurchaseDate = updatedAsset.PurchaseDate;
+        Assets.Update(updatedAsset);
 
         await SaveChangesAsync();
     }
@@ -67,23 +62,52 @@ public class AssetDbContext : DbContext
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
-        using (var dbContext = new AssetDbContext())
-        {
-            Console.WriteLine("Welcome to the asset manager");
+        await using var dbContext = new AssetDbContext();
+        Console.WriteLine("Welcome to the asset manager");
 
-            // Add initial testing assets
+        // Check if assets exist in the database
+        if (!await dbContext.Assets.AnyAsync())
+        {
+            // Add initial testing assets if there are none
             dbContext.Assets.AddRange(
                 new Asset { Name = "Laptop", Office = "Miami", Price = 999.99, PurchaseDate = DateTime.Now },
                 new Asset { Name = "Mobile Phone", Office = "Madrid", Price = 499.99, PurchaseDate = DateTime.Now }
             );
 
-            dbContext.SaveChanges();
-
-            // Continue with your application logic here
+            await dbContext.SaveChangesAsync();
         }
-        
-        
+    
+        var allAssets = await dbContext.GetAllAssets();
+        PrintAllAssets(allAssets);
+    }
+    
+    static void PrintAllAssets(List<Asset> assets)
+    {
+        if (assets.Count == 0)
+        {
+            Console.WriteLine("No assets to print");
+            return;
+        }
+
+        Console.WriteLine("{0,-20} {1,-20} {2,-20} {3,-20} {4,-20}",
+            "OFFICE",
+            "NAME",
+            "PRICE",
+            "PURCHASE DATE",
+            "EXPIRY DATE"
+        );
+
+        foreach (var asset in assets)
+        {
+            Console.WriteLine("{0,-20} {1,-20} {2,-20:C} {3,-20:d} {4,-20:d}",
+                asset.Office,
+                asset.Name,
+                asset.Price,
+                asset.PurchaseDate,
+                asset.PurchaseDate.AddYears(3)
+            );
+        }
     }
 }
