@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LexiconAssetsDatabase", "LexiconAssetsDatabase\LexiconAssetsDatabase.csproj", "{BF495626-8D46-49E2-B60D-17653AC53C70}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BF495626-8D46-49E2-B60D-17653AC53C70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF495626-8D46-49E2-B60D-17653AC53C70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF495626-8D46-49E2-B60D-17653AC53C70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF495626-8D46-49E2-B60D-17653AC53C70}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
