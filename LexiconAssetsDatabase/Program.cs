@@ -151,12 +151,18 @@ class Program
             Console.ResetColor();
         }
     }
-
+    
+    // Mockup currency conversion
     static double ConvertToLocalCurrency(double price, string office)
     {
-        // This method is a dummy method. You have to implement the logic to convert the currency based on the office location.
-        // The conversion rate will be different for each office depending on the country in which it is located.
-        // For now, the method returns the price as it is.
-        return price;
+        var conversionRate = office switch
+        {
+            "Miami" => 1.0,
+            "Madrid" => 0.86,
+            "Malmö" => 11.2,
+            _ => throw new ArgumentOutOfRangeException(nameof(office), office, null)
+        };
+
+        return price * conversionRate;
     }
 }
