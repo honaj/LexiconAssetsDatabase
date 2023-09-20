@@ -11,7 +11,7 @@ public class Asset
     public int Id { get; set; }
     public string? Name { get; set; }
     public string? Office { get; set; }
-    public double Price { get; set; }
+    public decimal Price { get; set; }
     public DateOnly PurchaseDate { get; set; }
 }
 
@@ -25,9 +25,17 @@ public class Computer : Asset
     
 }
 
+public class Office
+{
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public List<Asset> Assets;
+}
+
 public class AssetDbContext : DbContext
 {
     public DbSet<Asset> Assets { get; set; }
+    public DbSet<Office> Offices { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -78,22 +86,38 @@ public class AssetDbContext : DbContext
 
 class Program
 {
+    void MainMenu()
+    {
+        Console.WriteLine("(1) Create new asset");
+        Console.WriteLine("(2) Edit asset");
+        Console.WriteLine("(3) Delete asset");
+        Console.WriteLine("(4) Save and quit");
+    }
+    
     static async Task Main(string[] args)
     {
         await using var dbContext = new AssetDbContext();
         Console.WriteLine("Welcome to the asset manager");
+
+        // Add testing offices if none exist
+        if (!await dbContext.Offices.AnyAsync())
+        {
+            dbContext.Offices.AddRange(
+                new Office()
+            );
+        }
 
         // Check if assets exist in the database
         if (!await dbContext.Assets.AnyAsync())
         {
             // Add initial testing assets if there are none
             dbContext.Assets.AddRange(
-                new Computer { Name = "Asus", Office = "Miami", Price = 999.99, PurchaseDate = new DateOnly(2020, 01, 01) },
-                new Computer { Name = "Lenovo", Office = "Miami", Price = 999.99, PurchaseDate = new DateOnly(2021, 07, 15) },
-                new Computer { Name = "MacBook", Office = "Miami", Price = 999.99, PurchaseDate = new DateOnly(2022, 09, 01) },
-                new Phone { Name = "iPhone", Office = "Madrid", Price = 499.99, PurchaseDate = new DateOnly(2019, 05, 11) },
-                new Phone { Name = "Samsung", Office = "Madrid", Price = 499.99, PurchaseDate = new DateOnly(2023, 04, 18) },
-                new Phone { Name = "Nokia", Office = "Madrid", Price = 499.99, PurchaseDate = new DateOnly(2020, 11, 23) }
+                new Computer { Name = "Asus", Office = "Miami", Price = new decimal(999.9), PurchaseDate = new DateOnly(2020, 01, 01) },
+                new Computer { Name = "Lenovo", Office = "Miami", Price = new decimal(999.99), PurchaseDate = new DateOnly(2021, 07, 15) },
+                new Computer { Name = "MacBook", Office = "Miami", Price = new decimal(999.99), PurchaseDate = new DateOnly(2022, 09, 01) },
+                new Phone { Name = "iPhone", Office = "Madrid", Price = new decimal(499.99), PurchaseDate = new DateOnly(2019, 05, 11) },
+                new Phone { Name = "Samsung", Office = "Madrid", Price = new decimal(499.99), PurchaseDate = new DateOnly(2023, 04, 18) },
+                new Phone { Name = "Nokia", Office = "Madrid", Price = new decimal(499.99), PurchaseDate = new DateOnly(2020, 11, 23) }
             );
 
             await dbContext.SaveChangesAsync();
@@ -101,6 +125,7 @@ class Program
     
         var allAssets = await dbContext.GetAllAssets();
         PrintAllAssets(allAssets);
+        CreateAsset();
     }
     
     static void PrintAllAssets(IList<Asset?> assets)
@@ -153,7 +178,7 @@ class Program
     }
     
     // Mockup currency conversion
-    static double ConvertToLocalCurrency(double price, string office)
+    static decimal ConvertToLocalCurrency(decimal price, string office)
     {
         var conversionRate = office switch
         {
@@ -163,6 +188,92 @@ class Program
             _ => throw new ArgumentOutOfRangeException(nameof(office), office, null)
         };
 
-        return price * conversionRate;
+        return price * (decimal)conversionRate;
+    }
+    
+    static Asset? CreateAsset()
+    {
+        AssetType assetType;
+
+        while (true)
+        {
+            Console.Write("Enter asset type (Phone or Laptop): ");
+            var input = Console.ReadLine()?.Trim();
+
+            if (string.IsNullOrEmpty(input))
+            {
+                Console.WriteLine("Invalid input. Please enter a valid asset type.");
+                continue;
+            }
+
+            if (Enum.TryParse(input, true, out assetType))
+            {
+                break;
+            }
+            Console.WriteLine("Invalid asset type. Please enter 'Phone' or 'Laptop'.");
+        }
+
+        Console.Write("Enter asset name: ");
+        var name = Console.ReadLine();
+
+        Console.Write("Enter asset office: ");
+        var office = Console.ReadLine();
+
+        decimal price;
+
+        while (true)
+        {
+            Console.Write("Enter asset price: ");
+            var input = Console.ReadLine()?.Trim();
+
+            if (string.IsNullOrEmpty(input) || !decimal.TryParse(input, out price) || price < 0)
+            {
+                Console.WriteLine("Invalid price. Please enter a valid non-negative number.");
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        DateOnly purchaseDate;
+
+        while (true)
+        {
+            Console.Write("Enter purchase date (YYYY-MM-DD): ");
+            var input = Console.ReadLine()?.Trim();
+
+            if (string.IsNullOrEmpty(input) || !DateOnly.TryParse(input, out purchaseDate))
+            {
+                Console.WriteLine("Invalid date format. Please enter a valid date in YYYY-MM-DD format.");
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        switch (assetType)
+        {
+            case AssetType.Phone:
+                return new Phone
+                {
+                    Name = name,
+                    Office = office,
+                    Price = price,
+                    PurchaseDate = purchaseDate
+                };
+            case AssetType.Laptop:
+                return new Computer
+                {
+                    Name = name,
+                    Office = office,
+                    Price = price,
+                    PurchaseDate = purchaseDate
+                };
+            default:
+                Console.WriteLine("Invalid asset type.");
+                return null;
+        }
     }
 }
