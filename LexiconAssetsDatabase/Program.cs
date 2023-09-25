@@ -1,4 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 public enum AssetType
 {
@@ -9,8 +13,8 @@ public enum AssetType
 public class Asset
 {
     public int Id { get; set; }
-    public string? Name { get; set; }
-    public string? Office { get; set; }
+    public string Name { get; set; }
+    public string Office { get; set; }
     public decimal Price { get; set; }
     public DateOnly PurchaseDate { get; set; }
 }
@@ -25,28 +29,15 @@ public class Computer : Asset
     
 }
 
-public class Office
-{
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public List<Asset> Assets;
-}
-
 public class AssetDbContext : DbContext
 {
     public DbSet<Asset> Assets { get; set; }
-    public DbSet<Office> Offices { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseSqlite("Data Source=Assets.db");
     }
 
-    public async Task<List<Asset>> GetAllAssets()
-    {
-        return await Assets.ToListAsync();
-    }
-    
     // C
     public async Task CreateAsset(Asset newAsset)
     {
@@ -55,6 +46,11 @@ public class AssetDbContext : DbContext
     }
 
     // R
+    public async Task<List<Asset>> GetAllAssets()
+    {
+        return await Assets.ToListAsync();
+    }
+
     public async Task<Asset?> GetAssetById(int assetId)
     {
         return await Assets.FindAsync(assetId);
@@ -63,7 +59,7 @@ public class AssetDbContext : DbContext
     // U
     public async Task UpdateAsset(Asset updatedAsset)
     {
-        if(updatedAsset is null) 
+        if(updatedAsset == null) 
             return;
 
         Assets.Update(updatedAsset);
@@ -86,26 +82,10 @@ public class AssetDbContext : DbContext
 
 class Program
 {
-    void MainMenu()
-    {
-        Console.WriteLine("(1) Create new asset");
-        Console.WriteLine("(2) Edit asset");
-        Console.WriteLine("(3) Delete asset");
-        Console.WriteLine("(4) Save and quit");
-    }
-    
-    static async Task Main(string[] args)
+    static async Task Main()
     {
         await using var dbContext = new AssetDbContext();
         Console.WriteLine("Welcome to the asset manager");
-
-        // Add testing offices if none exist
-        if (!await dbContext.Offices.AnyAsync())
-        {
-            dbContext.Offices.AddRange(
-                new Office()
-            );
-        }
 
         // Check if assets exist in the database
         if (!await dbContext.Assets.AnyAsync())
@@ -122,135 +102,158 @@ class Program
 
             await dbContext.SaveChangesAsync();
         }
-    
-        var allAssets = await dbContext.GetAllAssets();
-        PrintAllAssets(allAssets);
-        CreateAsset();
-    }
-    
-    static void PrintAllAssets(IList<Asset?> assets)
-    {
-        if (assets.Count == 0)
-        {
-            Console.WriteLine("No assets to print");
-            return;
-        }
-
-        Console.WriteLine("{0,-20} {1,-20} {2,-20} {3,-20} {4,-20}",
-            "OFFICE",
-            "NAME",
-            "PRICE",
-            "PURCHASE DATE",
-            "EXPIRY DATE"
-        );
-    
-        // Order the assets first by office then by purchase date
-        var orderedAssets = assets.OrderBy(a => a.Office).ThenBy(a => a.PurchaseDate);
-
-        foreach (var asset in orderedAssets)
-        {
-            // Check if the asset expiry date is less than 3 months or 6 months away from three years
-            var expiryDate = asset.PurchaseDate.AddYears(3);
-            var monthsToDeprecation = (expiryDate.Year - DateTime.Now.Year) * 12 + expiryDate.Month - DateTime.Now.Month;
-
-            Console.ForegroundColor = monthsToDeprecation switch
-            {
-                // Change the color of output text based on asset expiry date
-                <= 3 => ConsoleColor.Red,
-                <= 6 => ConsoleColor.Yellow,
-                _ => Console.ForegroundColor
-            };
-
-            // Convert price into local currency
-            var localCurrency = ConvertToLocalCurrency(asset.Price, asset.Office);
-        
-            Console.WriteLine("{0,-20} {1,-20} {2,-20} {3,-20:d} {4,-20:d}",
-                asset.Office,
-                asset.Name,
-                localCurrency,
-                asset.PurchaseDate,
-                expiryDate
-            );
-        
-            // Reset the console color
-            Console.ResetColor();
-        }
-    }
-    
-    // Mockup currency conversion
-    static decimal ConvertToLocalCurrency(decimal price, string office)
-    {
-        var conversionRate = office switch
-        {
-            "Miami" => 1.0,
-            "Madrid" => 0.86,
-            "Malmö" => 11.2,
-            _ => throw new ArgumentOutOfRangeException(nameof(office), office, null)
-        };
-
-        return price * (decimal)conversionRate;
-    }
-    
-    static Asset? CreateAsset()
-    {
-        AssetType assetType;
 
         while (true)
         {
-            Console.Write("Enter asset type (Phone or Laptop): ");
-            var input = Console.ReadLine()?.Trim();
-
-            if (string.IsNullOrEmpty(input))
+            Console.Clear();
+            Console.WriteLine("Asset Tracking Menu:");
+            Console.WriteLine("(1) List All Assets");
+            Console.WriteLine("(2) Create New Asset");
+            Console.WriteLine("(3) Edit Asset");
+            Console.WriteLine("(4) Delete Asset");
+            Console.WriteLine("(5) Save and Quit");
+            var allAssets = await dbContext.GetAllAssets();
+            var choice = Console.ReadLine();
+            
+            switch (choice)
             {
-                Console.WriteLine("Invalid input. Please enter a valid asset type.");
-                continue;
+                case "1":
+                    PrintAllAssets(allAssets);
+                    break;
+
+                case "2":
+                    var newAsset = CreateAsset();
+                    if (newAsset != null)
+                    {
+                        await dbContext.CreateAsset(newAsset);
+                        Console.WriteLine("Asset created successfully.");
+                    }
+                    break;
+
+                case "3":
+                    PrintAllAssets(allAssets);
+                    Console.Write("Enter the asset ID to edit: ");
+                    if (int.TryParse(Console.ReadLine(), out var editId))
+                    {
+                        var assetToEdit = await dbContext.GetAssetById(editId);
+                        if (assetToEdit != null)
+                        {
+                            EditAsset(assetToEdit);
+                            await dbContext.UpdateAsset(assetToEdit);
+                            Console.WriteLine("Asset updated successfully.");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Asset not found.");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid input. Please enter a valid asset ID.");
+                    }
+                    break;
+
+                case "4":
+                    PrintAllAssets(allAssets);
+                    Console.Write("Enter the asset ID to delete: ");
+                    if (int.TryParse(Console.ReadLine(), out var deleteId))
+                    {
+                        await dbContext.DeleteAsset(deleteId);
+                        Console.WriteLine("Asset deleted successfully.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid input. Please enter a valid asset ID.");
+                    }
+                    break;
+
+                case "5":
+                    return;
+
+                default:
+                    Console.WriteLine("Invalid choice. Please try again.");
+                    break;
             }
 
+            Console.WriteLine("Press Enter to continue...");
+            Console.ReadLine();
+        }
+    }
+
+    // Create a new asset using console input
+    static Asset CreateAsset()
+    {
+        //Validate type
+        Console.Write("Enter asset type (Phone or Laptop): ");
+        AssetType assetType;
+        do
+        {
+            var input = Console.ReadLine()?.Trim();
             if (Enum.TryParse(input, true, out assetType))
             {
                 break;
             }
-            Console.WriteLine("Invalid asset type. Please enter 'Phone' or 'Laptop'.");
-        }
+            Console.WriteLine("Invalid input. Please enter a valid asset type (Phone or Laptop): ");
+        } while (true);
 
-        Console.Write("Enter asset name: ");
-        var name = Console.ReadLine();
+        //Validate name
+        string name;
+        do
+        {
+            Console.Write("Enter asset name: ");
+            name = Console.ReadLine().Trim();
+            if (!string.IsNullOrEmpty(name))
+            {
+                break;
+            }
+            Console.WriteLine("Please enter an asset name");
+        } while (true);
 
-        Console.Write("Enter asset office: ");
-        var office = Console.ReadLine();
+        // Validate office
+        string office;
+        do
+        {
+            var validOffices = new List<string> {"madrid", "malmö", "miami"};
+            Console.Write("Enter asset office (Madrid, Malmö or Miami): ");
+            office = Console.ReadLine().Trim();
 
+            if (validOffices.Contains(office.ToLower()))
+            {
+                break;
+            }
+            Console.WriteLine("Please enter a valid office (Madrid, Malmö or Miami)");
+        } while (true);
+
+        // Validate price
         decimal price;
-
-        while (true)
+        do
         {
             Console.Write("Enter asset price: ");
             var input = Console.ReadLine()?.Trim();
-
-            if (string.IsNullOrEmpty(input) || !decimal.TryParse(input, out price) || price < 0)
-            {
-                Console.WriteLine("Invalid price. Please enter a valid non-negative number.");
-            }
-            else
+            if (decimal.TryParse(input, out price) && price >= 0)
             {
                 break;
             }
-        }
+            Console.WriteLine("Invalid price. Please enter a valid non-negative number: ");
+        } while (true);
 
+        //Validate purchase date
         DateOnly purchaseDate;
-
-        while (true)
+        do
         {
             Console.Write("Enter purchase date (YYYY-MM-DD): ");
             var input = Console.ReadLine()?.Trim();
-
-            if (string.IsNullOrEmpty(input) || !DateOnly.TryParse(input, out purchaseDate))
-            {
-                Console.WriteLine("Invalid date format. Please enter a valid date in YYYY-MM-DD format.");
-            }
-            else
+            if (DateOnly.TryParse(input, out purchaseDate))
             {
                 break;
             }
+            Console.WriteLine("Invalid date format. Please enter a valid date in YYYY-MM-DD format: ");
+        } while (true);
+
+        if (purchaseDate == default)
+        {
+            Console.WriteLine("Using today's date.");
+            purchaseDate = DateOnly.FromDateTime(DateTime.Now);
         }
 
         switch (assetType)
@@ -272,8 +275,77 @@ class Program
                     PurchaseDate = purchaseDate
                 };
             default:
-                Console.WriteLine("Invalid asset type.");
                 return null;
         }
+    }
+
+    //Edit a chosen asset
+    static void EditAsset(Asset asset)
+    {
+        Console.Write($"Editing Asset (ID: {asset.Id})\n");
+        Console.Write($"Name ({asset.Name}): ");
+        var name = Console.ReadLine();
+        if (!string.IsNullOrEmpty(name))
+        {
+            asset.Name = name;
+        }
+
+        Console.Write($"Office ({asset.Office}): ");
+        var office = Console.ReadLine();
+        if (!string.IsNullOrEmpty(office))
+        {
+            asset.Office = office;
+        }
+
+        Console.Write($"Price ({asset.Price}): ");
+        if (decimal.TryParse(Console.ReadLine(), out var price) && price >= 0)
+        {
+            asset.Price = price;
+        }
+
+        Console.Write($"Purchase Date ({asset.PurchaseDate}): ");
+        if (DateOnly.TryParse(Console.ReadLine(), out var purchaseDate))
+        {
+            asset.PurchaseDate = purchaseDate;
+        }
+    }
+
+    // Print all assets in database, sorted and colored
+    static void PrintAllAssets(IEnumerable<Asset> assets)
+    {
+        Console.WriteLine("{0,-5} {1,-15} {2,-15} {3,-10} {4,-15} {5,-15} {6,-10}",
+            "ID", "Type", "Name", "Office", "Price", "Purchase Date", "Expiry Date");
+
+        var currentDate = DateOnly.FromDateTime(DateTime.Now);
+        foreach (var asset in assets.OrderBy(a => a.Office).ThenBy(a => a.PurchaseDate))
+        {
+            var expiryDate = asset.PurchaseDate.AddYears(3);
+            var monthsToDeprecation = (expiryDate.Year - currentDate.Year) * 12 + expiryDate.Month - currentDate.Month;
+
+            Console.ForegroundColor = monthsToDeprecation switch
+            {
+                <= 3 => ConsoleColor.Red,
+                <= 6 => ConsoleColor.Yellow,
+                _ => Console.ForegroundColor
+            };
+
+            Console.WriteLine("{0,-5} {1,-15} {2,-15} {3,-10} {4,-15} {5,-15:yyyy-MM-dd} {6,-10}",
+                asset.Id, asset.GetType().Name, asset.Name, asset.Office, ConvertFromUsd(asset), asset.PurchaseDate, expiryDate);
+
+            Console.ResetColor();
+        }
+    }
+
+    // Mockup method to convert currencies. Using string matching is probably a bad idea though...
+    static decimal ConvertFromUsd(Asset asset)
+    {
+        var conversionRate = asset.Office.ToLower() switch
+        {
+            "miami" => new decimal(1.0),
+            "madrid" => new decimal(0.87),
+            "malmö" => new decimal(11.5),
+            _ => throw new ArgumentOutOfRangeException()
+        };
+        return asset.Price * conversionRate;
     }
 }
