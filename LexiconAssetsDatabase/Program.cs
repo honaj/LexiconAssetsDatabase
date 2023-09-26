@@ -10,78 +10,9 @@ public enum AssetType
     Laptop
 }
 
-public class Asset
-{
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public string Office { get; set; }
-    public decimal Price { get; set; }
-    public DateOnly PurchaseDate { get; set; }
-}
-
-public class Phone : Asset
-{
-    
-}
-
-public class Computer : Asset
-{
-    
-}
-
-public class AssetDbContext : DbContext
-{
-    public DbSet<Asset> Assets { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        optionsBuilder.UseSqlite("Data Source=Assets.db");
-    }
-
-    // C
-    public async Task CreateAsset(Asset newAsset)
-    {
-        Assets.Add(newAsset);
-        await SaveChangesAsync();
-    }
-
-    // R
-    public async Task<List<Asset>> GetAllAssets()
-    {
-        return await Assets.ToListAsync();
-    }
-
-    public async Task<Asset?> GetAssetById(int assetId)
-    {
-        return await Assets.FindAsync(assetId);
-    }
-    
-    // U
-    public async Task UpdateAsset(Asset updatedAsset)
-    {
-        if(updatedAsset == null) 
-            return;
-
-        Assets.Update(updatedAsset);
-
-        await SaveChangesAsync();
-    }
-    
-    // D
-    public async Task DeleteAsset(int assetId)
-    {
-        var assetToDelete = await GetAssetById(assetId);
-        
-        if(assetToDelete is null)
-            return;
-
-        Assets.Remove(assetToDelete);
-        await SaveChangesAsync();
-    }
-}
-
 class Program
 {
+    // Main menu
     static async Task Main()
     {
         await using var dbContext = new AssetDbContext();
